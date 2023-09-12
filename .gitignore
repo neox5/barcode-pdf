@@ -1,0 +1,9 @@
+# build results
+bin
+
+# test files
+*.pdf
+*.png
+
+# System files
+.DS_Store
