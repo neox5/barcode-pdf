@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/code128"
@@ -24,9 +25,33 @@ func main() {
 		// Remove newline character
 		input = input[:len(input)-1]
 
+		// delete all previous barcode files before generation
+		err := deleteBarcodeFiles("./")
+		if err != nil {
+			log.Fatalln("error deleten previous barcode files:", err)
+		}
+
 		// Call your existing barcode PDF generation function
 		generateBarcodePDF(input)
 	}
+}
+
+func deleteBarcodeFiles(dir string) error {
+	pattern := "barcode_*.pdf"
+
+	files, err := filepath.Glob(filepath.Join(dir, pattern))
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		err = os.Remove(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func generateBarcodePDF(barcodeData string) {
@@ -61,6 +86,7 @@ func newPdfLabel() *gofpdf.Fpdf {
 func addBarcode(pdf *gofpdf.Fpdf, barcodeData string) {
 	pdf.RegisterImageOptionsReader("barcode.png", gofpdf.ImageOptions{ImageType: "png"}, createBarcodeReader(barcodeData))
 
+	// pdf.ImageOptions("barcode.png", 2.5, 0, 45, 0, true, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
 	pdf.ImageOptions("barcode.png", 2.5, 0, 45, 0, true, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
 	pdf.SetY(pdf.GetY() + 1)
 	pdf.CellFormat(50, 3, barcodeData, "0", 1, "C", false, 0, "")
@@ -69,6 +95,8 @@ func addBarcode(pdf *gofpdf.Fpdf, barcodeData string) {
 func createBarcodeReader(data string) io.Reader {
 	bc, _ := code128.Encode(data)
 	bcScaled, err := barcode.Scale(bc, 600, 100)
+	// bc, _ := pdf417.Encode(data, 5)
+	// bcScaled, err := barcode.Scale(bc, 600, 100)
 	if err != nil {
 		log.Fatalf("error scaling barcode: %v", err)
 	}
