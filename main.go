@@ -11,9 +11,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/boombuler/barcode"
-	"github.com/boombuler/barcode/code128"
+	"github.com/boombuler/barcode/pdf417"
 	"github.com/jung-kurt/gofpdf"
 )
 
@@ -22,8 +23,8 @@ func main() {
 	for {
 		fmt.Print("Enter barcode generation: ")
 		input, _ := reader.ReadString('\n')
-		// Remove newline character
-		input = input[:len(input)-1]
+		// Trim all leading and trailing whitespace, including \r
+		input = strings.TrimSpace(input)
 
 		// delete all previous barcode files before generation
 		err := deleteBarcodeFiles("./")
@@ -55,10 +56,17 @@ func deleteBarcodeFiles(dir string) error {
 }
 
 func generateBarcodePDF(barcodeData string) {
+	// Check for invalid characters in barcodeData
+	if strings.ContainsAny(barcodeData, `< > : " / \ | ? *`) {
+		log.Fatalf("Invalid characters in barcode data: %s", barcodeData)
+	}
+
 	pdf := newPdfLabel()
 	addBarcode(pdf, barcodeData)
 
-	err := pdf.OutputFileAndClose("barcode_" + barcodeData + ".pdf")
+	filename := "barcode_" + barcodeData + ".pdf"
+
+	err := pdf.OutputFileAndClose(filename)
 	if err != nil {
 		log.Fatalf("error generating pdf: %v", err)
 	}
@@ -86,17 +94,17 @@ func newPdfLabel() *gofpdf.Fpdf {
 func addBarcode(pdf *gofpdf.Fpdf, barcodeData string) {
 	pdf.RegisterImageOptionsReader("barcode.png", gofpdf.ImageOptions{ImageType: "png"}, createBarcodeReader(barcodeData))
 
-	// pdf.ImageOptions("barcode.png", 2.5, 0, 45, 0, true, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
 	pdf.ImageOptions("barcode.png", 2.5, 0, 45, 0, true, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
+	// pdf.ImageOptions("barcode.png", 2.5, 0, 45, 0, true, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
 	pdf.SetY(pdf.GetY() + 1)
 	pdf.CellFormat(50, 3, barcodeData, "0", 1, "C", false, 0, "")
 }
 
 func createBarcodeReader(data string) io.Reader {
-	bc, _ := code128.Encode(data)
-	bcScaled, err := barcode.Scale(bc, 600, 100)
-	// bc, _ := pdf417.Encode(data, 5)
+	// bc, _ := code128.Encode(data)
 	// bcScaled, err := barcode.Scale(bc, 600, 100)
+	bc, _ := pdf417.Encode(data, 3)
+	bcScaled, err := barcode.Scale(bc, 600, 100)
 	if err != nil {
 		log.Fatalf("error scaling barcode: %v", err)
 	}
